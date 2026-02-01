@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>For You</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=EB+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #1a1714;
+    --bg-card: #231f1a;
+    --bg-card-hover: #2a2520;
+    --text-primary: #e8ddd0;
+    --text-secondary: #a89a87;
+    --text-muted: #6b5f4f;
+    --accent: #c9a96e;
+    --accent-soft: rgba(201,169,110,0.15);
+    --accent-glow: rgba(201,169,110,0.08);
+    --rose: #d4a0a0;
+    --rose-soft: rgba(212,160,160,0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'EB Garamond', serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Ambient background */
+  .ambient {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  }
+  .ambient-orb {
+    position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.35;
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  .orb-1 { width: 500px; height: 500px; background: #3d2b1f; top: -100px; left: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: #2a1f2e; bottom: -80px; right: -80px; animation-delay: -6s; }
+  .orb-3 { width: 300px; height: 300px; background: #1f2a2a; top: 50%; left: 50%; transform: translate(-50%,-50%); animation-delay: -12s; }
+  @keyframes drift {
+    0% { transform: translate(0,0) scale(1); }
+    100% { transform: translate(30px, -20px) scale(1.05); }
+  }
+
+  /* Petals canvas */
+  #petals { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+  /* Main layout */
+  .app { position: relative; z-index: 2; max-width: 640px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  /* Header */
+  .header { text-align: center; padding: 60px 0 48px; }
+  .header-icon {
+    font-size: 28px; opacity: 0.6; margin-bottom: 20px;
+    animation: gentlePulse 3s ease-in-out infinite;
+  }
+  @keyframes gentlePulse {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.08); }
+  }
+  .header h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300; font-size: 2.6rem; letter-spacing: 0.04em;
+    color: var(--text-primary); margin-bottom: 10px;
+  }
+  .header p {
+    color: var(--text-muted); font-style: italic; font-size: 1.05rem;
+    letter-spacing: 0.02em;
+  }
+
+  /* Day cards */
+  .days { display: flex; flex-direction: column; gap: 14px; }
+
+  .day-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(201,169,110,0.08);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(.4,0,.2,1);
+    cursor: pointer;
+    position: relative;
+  }
+  .day-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--accent-glow) 0%, transparent 60%);
+    opacity: 0; transition: opacity 0.4s;
+  }
+  .day-card:hover { border-color: rgba(201,169,110,0.2); }
+  .day-card:hover::before { opacity: 1; }
+
+  .day-card.locked { opacity: 0.35; cursor: default; }
+  .day-card.locked:hover { border-color: rgba(201,169,110,0.08); }
+  .day-card.locked:hover::before { opacity: 0; }
+
+  .day-card.birthday .day-header { border-bottom-color: rgba(212,160,160,0.2); }
+  .day-card.birthday::before {
+    background: linear-gradient(135deg, var(--rose-soft) 0%, transparent 60%);
+  }
+
+  /* Card header (collapsed view) */
+  .day-header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px 24px;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.3s;
+    position: relative; z-index: 1;
+  }
+  .day-card.open .day-header { border-bottom-color: rgba(201,169,110,0.1); }
+
+  .day-emoji { font-size: 20px; flex-shrink: 0; width: 20px; text-align: center; }
+
+  .day-info { flex: 1; min-width: 0; }
+  .day-label {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300; font-size: 1.35rem; letter-spacing: 0.03em;
+    color: var(--text-primary); margin-bottom: 3px;
+  }
+  .day-subtitle {
+    font-size: 0.88rem; color: var(--text-muted); font-style: italic;
+    letter-spacing: 0.01em;
+  }
+
+  .day-status {
+    flex-shrink: 0; font-size: 0.75rem;
+    color: var(--text-muted); letter-spacing: 0.08em;
+    text-transform: uppercase; font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+  }
+  .day-card.locked .day-status { color: var(--text-muted); }
+  .day-card:not(.locked):not(.open) .day-status { color: var(--accent); opacity: 0.7; }
+
+  /* Chevron */
+  .chevron {
+    width: 18px; height: 18px; flex-shrink: 0;
+    transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+    opacity: 0.3;
+  }
+  .day-card.open .chevron { transform: rotate(180deg); }
+  .day-card.locked .chevron { opacity: 0.15; }
+
+  /* Expanded content */
+  .day-content {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.55s cubic-bezier(.4,0,.2,1);
+    position: relative; z-index: 1;
+  }
+  .day-card.open .day-content { max-height: 1200px; }
+
+  .content-inner {
+    padding: 32px 28px 36px;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 0.4s 0.15s, transform 0.4s 0.15s;
+  }
+  .day-card.open .content-inner { opacity: 1; transform: translateY(0); }
+
+  .content-inner p {
+    font-size: 1.08rem; line-height: 1.9;
+    color: var(--text-secondary);
+    margin-bottom: 1.1em;
+    letter-spacing: 0.01em;
+  }
+  .content-inner p:last-child { margin-bottom: 0; }
+
+  /* Signature */
+  .signature {
+    margin-top: 28px; padding-top: 20px;
+    border-top: 1px solid rgba(201,169,110,0.08);
+    text-align: right;
+  }
+  .signature span {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic; font-weight: 300;
+    color: var(--accent); font-size: 1.1rem; opacity: 0.7;
+    letter-spacing: 0.04em;
+  }
+
+  /* Birthday special styles */
+  .birthday-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300; font-size: 1.55rem; text-align: center;
+    color: var(--rose); margin-bottom: 24px; letter-spacing: 0.06em;
+  }
+  .birthday-heart { text-align: center; font-size: 22px; margin-bottom: 8px; opacity: 0.7; }
+
+  /* Footer */
+  .footer { text-align: center; margin-top: 56px; padding-top: 32px; }
+  .footer-line {
+    width: 40px; height: 1px; background: var(--accent); opacity: 0.2;
+    margin: 0 auto 20px;
+  }
+  .footer p {
+    color: var(--text-muted); font-style: italic; font-size: 0.9rem;
+    letter-spacing: 0.03em;
+  }
+
+  /* Lock icon SVG */
+  .lock-icon { width: 14px; height: 14px; opacity: 0.4; }
+</style>
+</head>
+<body>
+
+<div class="ambient">
+  <div class="ambient-orb orb-1"></div>
+  <div class="ambient-orb orb-2"></div>
+  <div class="ambient-orb orb-3"></div>
+</div>
+
+<canvas id="petals"></canvas>
+
+<div class="app">
+  <div class="header">
+    <div class="header-icon">✦</div>
+    <h1>For You</h1>
+    <p>one thing, every day, just for you</p>
+  </div>
+
+  <div class="days" id="days"></div>
+
+  <div class="footer">
+    <div class="footer-line"></div>
+    <p>come back tomorrow</p>
+  </div>
+</div>
+
+<script>
+const days = [
+  {
+    date: 1,
+    emoji: "🌱",
+    title: "February 1",
+    subtitle: "the beginning",
+    content: `<p>I wanted to do something small that lasts a little longer.</p>
+              <p>So this is a place just for you.<br>No biggie at all. No pressure, baby!.</p>
+              <p>Just come here once a day.<br>I'll be here, leaving pieces of my heart behind.</p>
+              <p>I miss you.<br>That's really what this is about, Omobayike.</p>`,
+    isBirthday: false
+  },
+  {
+    date: 2,
+    emoji: "🌿",
+    title: "February 2",
+    subtitle: "'rayo, what you mean to me",
+    content: `<p>Sometimes I don't even know how to explain you.</p>
+              <p>You make things softer without trying.<br>You make ordinary moments feel safe.<br>Being with you has always felt like moving in sync — like we're meant to be side by side, even when we're quiet.</p>
+              <p>You're strong in ways you don't show off.<br>And gentle in ways that matter.</p>
+              <p>I love you for the obvious reasons.<br>And even more for the ones you don't see.</p>`,
+    isBirthday: false
+  },
+  {
+    date: 3,
+    emoji: "☁️",
+    title: "February 3",
+    subtitle: "us, then and now",
+    content: `<p>I miss how we used to do everything together.</p>
+              <p>Walking. Talking. Doing absolutely nothing and still enjoying it.<br>I miss the feeling of always having you there — not needing to think about it.</p>
+              <p>Even now, I catch myself imagining you next to me.<br>Like my body still remembers.</p>
+              <p>Some things don't fade with distance.<br>They just wait, Ife.</p>`,
+    isBirthday: false
+  },
+  {
+    date: 4,
+    emoji: "✉️",
+    title: "February 4",
+    subtitle: "a letter, not rehearsed",
+    content: `<p>Hey Omobayike,</p>
+              <p>There are days when missing you hits quietly.<br>And other days when it comes all at once.</p>
+              <p>But loving you has never felt heavy.<br>Even when it's hard, it still feels right.</p>
+              <p>I've been growing, learning, becoming more myself — and somehow you've been part of that without being physically here. That's how I know this is real.</p>
+              <p>I don't need perfect timing.<br>I just need you.</p>`,
+    isBirthday: false
+  },
+  {
+    date: 5,
+    emoji: "🌼",
+    title: "February 5",
+    subtitle: "little things",
+    content: `<p>There are things I love about you that don't sound dramatic enough to say out loud.</p>
+              <p>The way you exist so naturally.<br>The way your presence calms me.<br>The way you're beautiful without trying — genuinely, unreal sometimes.</p>
+              <p>You don't perform love.<br>You are love.</p>
+              <p>And I notice. Always. Olawunmi!!!</p>`,
+    isBirthday: false
+  },
+  {
+    date: 6,
+    emoji: "🌱",
+    title: "February 6",
+    subtitle: "what I'm holding onto",
+    content: `<p>I think about a future where we don't have to plan around distance.</p>
+              <p>Where we walk together again — not counting steps, not counting days.<br>Where being together feels normal, the way it always should've been.</p>
+              <p>I don't need to know every detail.<br>I just know who I want to be standing next to.</p>
+              <p>And it's you.</p>`,
+    isBirthday: false
+  },
+  {
+    date: 7,
+    emoji: "🎂",
+    title: "February 7",
+    subtitle: "your day",
+    content: `<div class="birthday-heart">💚</div>
+              <div class="birthday-title">Happy Birthday, my Ife! Ola mi!</div>
+              <p>I wanted you to feel chosen.<br>Not just today — but every day leading up to it.</p>
+              <p>You're so beautiful it still catches me off guard.<br>And loving you is the easiest thing I've ever done.</p>
+              <p>I'm grateful for you.<br>I'm proud of you.<br>And I'm so excited for all the days we haven't lived yet.</p>
+              <p>See you soon.<br>Until then — this is my way of holding you.</p>
+              <p style="text-align:center; color: var(--accent); font-style:italic; margin-top: 28px; font-size: 1.15rem; letter-spacing: 0.04em;">Always you.</p>`,
+    isBirthday: true
+  }
+];
+
+// ──────────────────────────────
+// Date logic — uses local date
+// ──────────────────────────────
+function getTodayFebDay() {
+  const now = new Date();
+  if (now.getMonth() === 1) return now.getDate(); // February = month 1
+  if (now.getMonth() === 0 && now.getDate() >= 31) return 0; // Jan 31 edge
+  if (now.getMonth() > 1) return 8;  // past Feb → all unlocked
+  return 0; // before Feb
+}
+
+// For preview/testing: uncomment the line below and set a day (1–7)
+// const todayFebDay = 5;
+const todayFebDay = getTodayFebDay();
+
+// ──────────────────────────────
+// Render cards
+// ──────────────────────────────
+const container = document.getElementById('days');
+
+days.forEach((day, i) => {
+  const isUnlocked = todayFebDay >= day.date;
+  const isToday    = todayFebDay === day.date;
+
+  const card = document.createElement('div');
+  card.className = 'day-card' + (day.isBirthday ? ' birthday' : '') + (isUnlocked ? '' : ' locked');
+  card.dataset.index = i;
+
+  let statusHtml = '';
+  if (!isUnlocked) {
+    statusHtml = `<svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+  } else if (isToday) {
+    statusHtml = `<span class="day-status">Today</span>`;
+  }
+
+  card.innerHTML = `
+    <div class="day-header">
+      <span class="day-emoji">${day.emoji}</span>
+      <div class="day-info">
+        <div class="day-label">${day.title}</div>
+        <div class="day-subtitle">${day.subtitle}</div>
+      </div>
+      ${statusHtml}
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="day-content">
+      <div class="content-inner">
+        ${day.content}
+        <div class="signature"><span>— always yours</span></div>
+      </div>
+    </div>
+  `;
+
+  // Toggle open/close
+  if (isUnlocked) {
+    card.addEventListener('click', () => {
+      const wasOpen = card.classList.contains('open');
+      // Close all others
+      document.querySelectorAll('.day-card.open').forEach(c => c.classList.remove('open'));
+      // Toggle clicked
+      if (!wasOpen) card.classList.add('open');
+    });
+  }
+
+  // Auto-open today's card with a slight delay
+  if (isToday) {
+    setTimeout(() => card.classList.add('open'), 600);
+  }
+
+  container.appendChild(card);
+});
+
+// ──────────────────────────────
+// Falling petals (canvas)
+// ──────────────────────────────
+(function petals() {
+  const canvas = document.getElementById('petals');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  class Petal {
+    constructor() { this.reset(true); }
+    reset(init) {
+      this.x = Math.random() * W;
+      this.y = init ? Math.random() * H : -20;
+      this.size = 1.5 + Math.random() * 2.5;
+      this.speedY = 0.3 + Math.random() * 0.5;
+      this.speedX = (Math.random() - 0.5) * 0.4;
+      this.wobble = Math.random() * Math.PI * 2;
+      this.wobbleSpeed = 0.4 + Math.random() * 0.6;
+      this.opacity = 0.15 + Math.random() * 0.25;
+      this.rotation = Math.random() * Math.PI * 2;
+      this.rotSpeed = (Math.random() - 0.5) * 0.04;
+    }
+    update() {
+      this.wobble += this.wobbleSpeed * 0.016;
+      this.x += this.speedX + Math.sin(this.wobble) * 0.6;
+      this.y += this.speedY;
+      this.rotation += this.rotSpeed;
+      if (this.y > H + 30) this.reset(false);
+    }
+    draw() {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rotation);
+      ctx.globalAlpha = this.opacity;
+      ctx.fillStyle = '#c9a96e';
+      ctx.beginPath();
+      // simple petal shape
+      ctx.ellipse(0, 0, this.size * 0.5, this.size, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // Create particles
+  for (let i = 0; i < 38; i++) particles.push(new Petal());
+
+  function loop() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => { p.update(); p.draw(); });
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>
